@@ -97,6 +97,32 @@ body.cursor-text .cursor-ibeam{opacity:1}
 html.custom-cursor,html.custom-cursor *{cursor:none!important}
 @media (pointer:coarse){#cursor-layer,#cursor-canvas{display:none!important}}
 </style>
+<style id="discord-live">
+/* ---------- live Discord banner ---------- */
+#profileBio{isolation:isolate}
+.profile-banner{position:absolute;top:0;left:0;right:0;height:clamp(14rem,28vw,19rem);z-index:0;overflow:hidden;pointer-events:none;opacity:0;transition:opacity .9s ease;background:var(--profile-banner-color,#0b0b0d);-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 54%,rgba(0,0,0,.6) 78%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,#000 54%,rgba(0,0,0,.6) 78%,transparent 100%)}
+.profile-banner.is-loaded{opacity:1}
+.profile-banner img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 32%;filter:brightness(.68) contrast(1.06)}
+.profile-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,10,.10) 0%,rgba(8,8,10,.28) 52%,rgba(11,11,13,.94) 100%)}
+.profile-avatar-deco{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;z-index:5;filter:drop-shadow(0 5px 14px rgba(0,0,0,.5))}
+.profile-avatar-deco[hidden]{display:none}
+/* ---------- Discord's original presence colors ---------- */
+@keyframes dot-ring{0%{box-shadow:0 0 0 0 rgba(35,165,90,.5)}100%{box-shadow:0 0 0 10px rgba(35,165,90,0)}}
+@keyframes ui-dot-ping{0%{box-shadow:0 0 0 0 rgba(35,165,90,.7)}70%{box-shadow:0 0 0 12px rgba(35,165,90,0)}100%{box-shadow:0 0 0 0 rgba(35,165,90,0)}}
+body.app-active #discordStatusDot.status-idle,body.app-active #discordStatusDot.status-dnd,body.app-active #discordStatusDot.status-offline{animation:none!important}
+.discord-status-dot.status-online,.status-dot[data-status="online"]{background:#23a55a;box-shadow:0 0 10px rgba(35,165,90,.65)}
+.discord-status-dot.status-idle,.status-dot[data-status="idle"]{background:#f0b232;box-shadow:0 0 10px rgba(240,178,50,.55)}
+.discord-status-dot.status-dnd,.status-dot[data-status="dnd"]{background:#f23f43;box-shadow:0 0 10px rgba(242,63,67,.55)}
+.discord-status-dot.status-offline,.status-dot[data-status="offline"]{background:#80848e;box-shadow:none}
+.presence-dot.dot-online{background:#23a55a;box-shadow:0 0 8px rgba(35,165,90,.65)}
+.presence-dot.dot-idle{background:#f0b232;box-shadow:0 0 8px rgba(240,178,50,.55)}
+.presence-dot.dot-dnd{background:#f23f43;box-shadow:0 0 8px rgba(242,63,67,.55)}
+.presence-dot.dot-offline{background:#80848e}
+.row-icon.dot[data-status="online"]{color:#23a55a}
+.row-icon.dot[data-status="idle"]{color:#f0b232}
+.row-icon.dot[data-status="dnd"]{color:#f23f43}
+.row-icon.dot[data-status="offline"]{color:#80848e}
+</style>
 </head>
 <body data-part="one">
 
@@ -157,11 +183,13 @@ html.custom-cursor,html.custom-cursor *{cursor:none!important}
 
     <!-- Bio -->
     <section class="section" id="profileBio">
+      <div class="profile-banner" id="profileBanner" aria-hidden="true"><img id="profileBannerImg" alt="" decoding="async"></div>
       <div class="hero-content">
         <div class="profile-wrapper">
           <div class="profile-border"></div>
           <div class="profile-image">
             <div class="profile-inner" id="profileAvatar"><img id="avatar" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%230b0b0d%22/%3E%3Ctext%20x%3D%2250%22%20y%3D%2268%22%20font-size%3D%2256%22%20font-weight%3D%22900%22%20text-anchor%3D%22middle%22%20fill%3D%22%23ffffff%22%20font-family%3D%22Arial%2CHelvetica%2Csans-serif%22%3EP%3C/text%3E%3C/svg%3E" alt="avatar" /></div>
+            <img class="profile-avatar-deco" id="avatarDecoration" alt="" decoding="async" hidden>
           </div>
           <div class="discord-status-dot status-offline" id="discordStatusDot" title="Discord Status"></div>
         </div>
@@ -244,6 +272,8 @@ html.custom-cursor,html.custom-cursor *{cursor:none!important}
 
 const $ = (id) => document.getElementById(id);
 const POLL_MS = 5000;
+const DISCORD_PROFILE_MS = 10 * 60 * 1000;
+const DISCORD_CDN = "https://cdn.discordapp.com";
 
 const state = {
   snapshot: null,
@@ -331,6 +361,79 @@ const ICONS = {
 };
 const SEARCH_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" class="stroke"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
 
+function applyAvatarDecoration(asset) {
+  const img = $("avatarDecoration");
+  if (!img) return;
+  if (!asset) {
+    img.hidden = true;
+    img.removeAttribute("src");
+    delete img.dataset.asset;
+    return;
+  }
+  if (img.dataset.asset === asset) {
+    img.hidden = false;
+    return;
+  }
+  img.dataset.asset = asset;
+  img.hidden = false;
+  img.onerror = () => { img.hidden = true; img.onerror = null; };
+  img.src = `${DISCORD_CDN}/avatar-decoration-presets/${encodeURIComponent(asset)}.png`;
+}
+
+function bannerCdnUrl(value) {
+  try {
+    const url = new URL(value);
+    if (/(^|\.)discordapp\.com$/i.test(url.hostname) && !url.searchParams.has("size")) {
+      url.searchParams.set("size", "1024");
+    }
+    return url.toString();
+  } catch (err) {
+    return value;
+  }
+}
+
+function applyDiscordBanner(profile) {
+  const wrap = $("profileBanner");
+  const img = $("profileBannerImg");
+  if (!wrap || !img || !profile) return;
+  const url = typeof profile.bannerURL === "string" ? bannerCdnUrl(profile.bannerURL) : "";
+  const color = typeof profile.banner_color === "string" ? profile.banner_color : "#0b0b0d";
+  wrap.style.setProperty("--profile-banner-color", color);
+  if (!url) {
+    wrap.classList.remove("is-loaded");
+    img.removeAttribute("src");
+    delete img.dataset.url;
+    return;
+  }
+  if (img.dataset.url === url) return;
+  img.dataset.url = url;
+  wrap.classList.remove("is-loaded");
+  img.onload = () => wrap.classList.add("is-loaded");
+  img.onerror = () => { wrap.classList.remove("is-loaded"); img.onerror = null; };
+  img.src = url;
+}
+
+let lastDiscordProfileSync = 0;
+
+async function syncDiscordProfile(force) {
+  const id = window.__CONFIG__ && window.__CONFIG__.discord_id;
+  if (!id) return;
+  if (!force && Date.now() - lastDiscordProfileSync < 60 * 1000) return;
+  lastDiscordProfileSync = Date.now();
+  try {
+    const r = await fetch(`https://japi.rest/discord/v1/user/${id}`, { cache: "no-store" });
+    if (!r.ok) return;
+    const j = await r.json();
+    const profile = j && j.data;
+    if (!profile) return;
+    applyDiscordBanner(profile);
+    const decoration = profile.avatar_decoration_data && profile.avatar_decoration_data.asset;
+    if (decoration) applyAvatarDecoration(decoration);
+  } catch (err) {
+    // keep the last known banner and decoration when the public API is unavailable
+  }
+}
+
 function renderProfile(data) {
   const user = data.discord?.user || {};
   const status = data.discord?.status || "offline";
@@ -363,6 +466,7 @@ function renderProfile(data) {
       img.alt = `${name} avatar`;
     }
   }
+  if (user.avatarDecoration) applyAvatarDecoration(user.avatarDecoration);
 
   const dot = $("discordStatusDot");
   dot.className = `discord-status-dot status-${status}`;
@@ -1820,6 +1924,7 @@ function lanyardToDiscord(d) {
       id: u.id,
       username: u.username || "ps1coseadoo",
       avatar: u.avatar ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=256` : null,
+      avatarDecoration: (u.avatar_decoration_data && u.avatar_decoration_data.asset) || null,
     },
     custom_status: custom ? { text: custom.state || "", emoji: (custom.emoji && custom.emoji.name) || null } : null,
     activities: acts.filter((a) => a.type !== 4 && a.type !== 2).map((a) => ({ kind: "game", name: a.name, details: a.details || a.state || "" })),
@@ -2491,13 +2596,16 @@ function boot() {
   }
   loadConfig();
   poll();
+  syncDiscordProfile(true);
   setInterval(() => { if (!document.hidden) poll(); }, POLL_MS);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) { tickClock(); poll(); } });
+  setInterval(() => { if (!document.hidden) syncDiscordProfile(); }, DISCORD_PROFILE_MS);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { tickClock(); poll(); syncDiscordProfile(); } });
   initTilt();
 
   document.addEventListener("keydown", (ev) => {
     if (ev.key.toLowerCase() === "r" && !ev.metaKey && !ev.ctrlKey && !ev.altKey) {
       poll();
+      syncDiscordProfile(true);
     }
   });
 }
