@@ -218,6 +218,7 @@ body.app-active #discordStatusDot.status-idle,body.app-active #discordStatusDot.
 .intro-object{
   position:relative;display:inline-block;margin:0 auto;
   --bx:0%;--lx:55%;--ly:24%;
+  --dx:.0028em;--dy:.0042em;--dz:-.013em;
   font-size:clamp(3rem,13.4vw,15rem);font-weight:900;line-height:.8;
   letter-spacing:-.052em;text-transform:uppercase;white-space:nowrap;
   font-kerning:none;font-feature-settings:"kern" 0;
@@ -232,15 +233,15 @@ body.app-active #discordStatusDot.status-idle,body.app-active #discordStatusDot.
   color:transparent;
   background:var(--side,#7c7c86);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-  transform:translate3d(calc(var(--d,1) * .0028em),calc(var(--d,1) * .0042em),calc(var(--d,1) * -.013em));
+  transform:translate3d(calc(var(--d,1) * var(--dx)),calc(var(--d,1) * var(--dy)),calc(var(--d,1) * var(--dz)));
   animation:intro-slice-in 1.75s cubic-bezier(.16,.84,.24,1) both;
   animation-delay:var(--delay,0ms);
   backface-visibility:hidden;
 }
 @keyframes intro-slice-in{
-  0%{opacity:0;transform:translate3d(calc(var(--d,1) * .0028em),calc(var(--d,1) * .0042em),calc(-1150px - var(--d,1) * .013em)) rotateX(5deg)}
+  0%{opacity:0;transform:translate3d(calc(var(--d,1) * var(--dx)),calc(var(--d,1) * var(--dy)),calc(-1150px + var(--d,1) * var(--dz))) rotateX(5deg)}
   58%{opacity:1}
-  100%{opacity:1;transform:translate3d(calc(var(--d,1) * .0028em),calc(var(--d,1) * .0042em),calc(var(--d,1) * -.013em)) rotateX(0)}
+  100%{opacity:1;transform:translate3d(calc(var(--d,1) * var(--dx)),calc(var(--d,1) * var(--dy)),calc(var(--d,1) * var(--dz))) rotateX(0)}
 }
 
 .intro-echo{
@@ -349,7 +350,10 @@ body.app-active #discordStatusDot.status-idle,body.app-active #discordStatusDot.
 @media (max-width:760px){
   #bg-start-audio{perspective:1100px}
   .intro-scene{transform:translateY(-1.2vh);padding:1rem 5vw}
-  .intro-object{font-size:clamp(2.55rem,14.2vw,6rem)}
+  .intro-object{
+    --dx:.0042em;--dy:.0064em;--dz:-.02em;
+    font-size:clamp(2.55rem,14.2vw,6rem);
+  }
   .intro-role{
     margin-top:clamp(2.8rem,7.5vh,3.8rem);font-size:.52rem;letter-spacing:.2em;
     max-width:90%;line-height:1.9;
@@ -1446,7 +1450,7 @@ function initIntroStage(displayText) {
 
     const slices = $("introSlices");
     if (slices) {
-      const depth = window.matchMedia("(pointer: coarse)").matches ? 20 : 30;
+      const depth = window.matchMedia("(pointer: coarse)").matches ? 24 : 30;
       const frag = document.createDocumentFragment();
       for (let i = 1; i <= depth; i++) {
         const slice = document.createElement("span");
